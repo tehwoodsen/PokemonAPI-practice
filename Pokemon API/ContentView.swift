@@ -81,6 +81,8 @@ struct ContentView: View {
     @State private var correctedName: String?
     @State private var evolvesFrom: String?
     @State private var evolvesTo: String?
+    @State private var fromSpriteURL: String?
+    @State private var toSpriteURL: String?
 
     var body: some View {
         NavigationView {
@@ -123,11 +125,30 @@ struct ContentView: View {
                         if !evolutionMethod.isEmpty {
                             Text("How to Evolve: \(evolutionMethod)")
                         }
-                        if let from = evolvesFrom {
-                            Text("Evolved From: \(from)")
+                        if let from = evolvesFrom, let url = fromSpriteURL, let spriteURL = URL(string: url) {
+                            HStack {
+                                Text("Evolved From:")
+                                AsyncImage(url: spriteURL) { image in
+                                    image.resizable()
+                                } placeholder: {
+                                    ProgressView()
+                                }
+                                .frame(width: 40, height: 40)
+                                Text(from)
+                            }
                         }
-                        if let to = evolvesTo {
-                            Text("Evolves To: \(to)")
+
+                        if let to = evolvesTo, let url = toSpriteURL, let spriteURL = URL(string: url) {
+                            HStack {
+                                Text("Evolves To:")
+                                AsyncImage(url: spriteURL) { image in
+                                    image.resizable()
+                                } placeholder: {
+                                    ProgressView()
+                                }
+                                .frame(width: 40, height: 40)
+                                Text(to)
+                            }
                         }
                     }
                     .padding()
@@ -193,8 +214,22 @@ struct ContentView: View {
                 }
 
                 if let context = findEvolutionContext(in: evolution.chain, previous: nil) {
-                    self.evolvesFrom = context.from?.capitalized
-                    self.evolvesTo = context.to?.capitalized
+                    if let from = context.from {
+                        self.evolvesFrom = from.capitalized
+                        self.fromSpriteURL = await fetchPokemonSprite(for: from)
+                    } else {
+                        self.evolvesFrom = nil
+                        self.fromSpriteURL = nil
+                    }
+
+                    if let to = context.to {
+                        self.evolvesTo = to.capitalized
+                        self.toSpriteURL = await fetchPokemonSprite(for: to)
+                    } else {
+                        self.evolvesTo = nil
+                        self.toSpriteURL = nil
+                    }
+
                     self.evolutionLevel = context.to ?? "N/A"
 
                     if let evoDetail = context.details {
@@ -212,6 +247,8 @@ struct ContentView: View {
                 } else {
                     self.evolvesFrom = nil
                     self.evolvesTo = nil
+                    self.fromSpriteURL = nil
+                    self.toSpriteURL = nil
                     self.evolutionLevel = "N/A"
                     self.evolutionMethod = "Unknown"
                 }
@@ -223,6 +260,8 @@ struct ContentView: View {
                 self.attack = nil
                 self.evolvesFrom = nil
                 self.evolvesTo = nil
+                self.fromSpriteURL = nil
+                self.toSpriteURL = nil
                 self.evolutionLevel = "N/A"
                 self.evolutionMethod = ""
             }
@@ -294,5 +333,16 @@ func fetchAllPokemonNames() async -> [String] {
         return decoded.results.map { $0.name }
     } catch {
         return []
+    }
+}
+
+func fetchPokemonSprite(for name: String) async -> String? {
+    guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon/\(name.lowercased())") else { return nil }
+    do {
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let decoded = try JSONDecoder().decode(Pokemon.self, from: data)
+        return decoded.sprites.front_default
+    } catch {
+        return nil
     }
 }
