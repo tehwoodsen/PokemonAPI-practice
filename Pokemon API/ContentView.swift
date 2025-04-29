@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+struct ScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct Pokemon: Decodable {
     let name: String
     let height: Int
@@ -73,101 +80,155 @@ struct ContentView: View {
     @State private var pokemonName = ""
     @State private var pokemon: Pokemon?
     @State private var errorMessage: String?
-    @State private var hp: Int?
-    @State private var attack: Int?
-    @State private var evolutionMethod: String = ""
-    @State private var allPokemonNames: [String] = []
     @State private var correctedName: String?
-    @State private var evolvesFrom: String?
-    @State private var evolvesTo: String?
-    @State private var fromSpriteURL: String?
-    @State private var toSpriteURL: String?
+    @State private var allPokemonNames: [String] = []
+    @State private var evolutionOptions: [EvolutionOption] = []
+    @State private var previousOptions: [EvolutionOption] = []
+    @State private var showScrollDownIndicator = true
+    @State private var showScrollUpButton = false
 
     var body: some View {
         NavigationView {
-            VStack {
-                TextField("Enter Pokémon name", text: $pokemonName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack {
+                        Color.clear
+                            .frame(height: 1)
+                            .background(GeometryReader { geo in
+                                Color.clear.preference(key: ScrollOffsetKey.self, value: geo.frame(in: .named("scroll")).maxY)
+                            })
 
-                Button("Search") {
-                    fetchPokemon(named: pokemonName.lowercased())
-                }
+                        TextField("Enter Pokémon name", text: $pokemonName)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .padding()
 
-                if let corrected = correctedName {
-                    Text("Did you mean \(corrected.capitalized)?")
-                        .foregroundColor(.orange)
-                        .font(.subheadline)
-                }
-
-                if let pokemon = pokemon {
-                    VStack(spacing: 10) {
-                        Text(pokemon.name.capitalized)
-                            .font(.largeTitle)
-
-                        AsyncImage(url: URL(string: pokemon.sprites.front_default)) { image in
-                            image.resizable()
-                        } placeholder: {
-                            ProgressView()
+                        Button("Search") {
+                            fetchPokemon(named: pokemonName.lowercased())
                         }
-                        .frame(width: 120, height: 120)
 
-                        Text("Height: \(pokemon.height)")
-                        Text("Weight: \(pokemon.weight)")
-                        if let hp = hp {
-                            Text("HP: \(hp)")
+                        if let corrected = correctedName {
+                            Text("Did you mean \(corrected.capitalized)?")
+                                .foregroundColor(.orange)
+                                .font(.subheadline)
                         }
-                        if let attack = attack {
-                            Text("Attack: \(attack)")
-                        }
-                        if !evolutionMethod.isEmpty {
-                            Text("How to Evolve: \(evolutionMethod)")
-                        }
-                        if let from = evolvesFrom, let url = fromSpriteURL, let spriteURL = URL(string: url) {
-                            Button {
-                                pokemonName = from.lowercased()
-                                fetchPokemon(named: from.lowercased())
-                            } label: {
-                                HStack {
-                                    Text("Evolved From:")
-                                    AsyncImage(url: spriteURL) { image in
-                                        image.resizable()
-                                    } placeholder: {
-                                        ProgressView()
-                                    }
-                                    .frame(width: 40, height: 40)
-                                    Text(from)
+
+                        if let pokemon = pokemon {
+                            VStack(spacing: 10) {
+                                Text(pokemon.name.capitalized)
+                                    .font(.largeTitle)
+
+                                AsyncImage(url: URL(string: pokemon.sprites.front_default)) { image in
+                                    image.resizable()
+                                } placeholder: {
+                                    ProgressView()
                                 }
+                                .frame(width: 120, height: 120)
+
+                                VStack {
+                                    ForEach(pokemon.stats, id: \.stat.name) { stat in
+                                        Text("\(stat.stat.name.capitalized): \(stat.base_stat)")
+                                    }
+                                }
+                                .padding(.top, 4)
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .padding()
+
+                            if !previousOptions.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Previous Evolutions:")
+                                        .font(.headline)
+                                    ForEach(previousOptions) { option in
+                                        Button {
+                                            pokemonName = option.name.lowercased()
+                                            fetchPokemon(named: option.name.lowercased())
+                                        } label: {
+                                            HStack {
+                                                if let url = option.spriteURL, let spriteURL = URL(string: url) {
+                                                    AsyncImage(url: spriteURL) { image in
+                                                        image.resizable()
+                                                    } placeholder: {
+                                                        ProgressView()
+                                                    }
+                                                    .frame(width: 40, height: 40)
+                                                }
+                                                Text(option.name)
+                                                Spacer()
+                                                if !option.method.isEmpty {
+                                                    Text(option.method)
+                                                        .italic()
+                                                }
+                                            }
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                                .padding()
+                            }
+
+                            if !evolutionOptions.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Possible Evolutions:")
+                                        .font(.headline)
+                                    ForEach(evolutionOptions) { option in
+                                        Button {
+                                            pokemonName = option.name.lowercased()
+                                            fetchPokemon(named: option.name.lowercased())
+                                        } label: {
+                                            HStack {
+                                                if let url = option.spriteURL, let spriteURL = URL(string: url) {
+                                                    AsyncImage(url: spriteURL) { image in
+                                                        image.resizable()
+                                                    } placeholder: {
+                                                        ProgressView()
+                                                    }
+                                                    .frame(width: 40, height: 40)
+                                                }
+                                                Text(option.name)
+                                                Spacer()
+                                                Text(option.method)
+                                                    .italic()
+                                            }
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                                .padding()
+                            }
+                        } else if let errorMessage = errorMessage {
+                            Text(errorMessage)
+                                .foregroundColor(.red)
                         }
 
-                        if let to = evolvesTo, let url = toSpriteURL, let spriteURL = URL(string: url) {
-                            Button {
-                                pokemonName = to.lowercased()
-                                fetchPokemon(named: to.lowercased())
-                            } label: {
-                                HStack {
-                                    Text("Evolves To:")
-                                    AsyncImage(url: spriteURL) { image in
-                                        image.resizable()
-                                    } placeholder: {
-                                        ProgressView()
-                                    }
-                                    .frame(width: 40, height: 40)
-                                    Text(to)
-                                }
-                            }
-                            .buttonStyle(PlainButtonStyle())
+                        // Removed Spacer() to allow scrolling
+                    }
+                    .id(0)
+                }
+                .onPreferenceChange(ScrollOffsetKey.self) { value in
+                    showScrollDownIndicator = value > (UIScreen.main.bounds.height - 50)
+                    showScrollUpButton = value < (UIScreen.main.bounds.height - 50)
+                }
+                .overlay(alignment: .bottom) {
+                    if showScrollDownIndicator {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "chevron.compact.down")
+                                .font(.largeTitle)
+                                .foregroundColor(.gray)
+                                .opacity(0.6)
+                            Spacer()
+                        }
+                    } else if showScrollUpButton {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "chevron.compact.down")
+                                .font(.largeTitle)
+                                .foregroundColor(.gray)
+                                .opacity(0.6)
+                            Spacer()
                         }
                     }
-                    .padding()
-                } else if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
                 }
-
-                Spacer()
+                .coordinateSpace(name: "scroll")
             }
             .navigationTitle("Pokémon Search")
         }
@@ -197,8 +258,6 @@ struct ContentView: View {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 let decodedPokemon = try JSONDecoder().decode(Pokemon.self, from: data)
                 self.pokemon = decodedPokemon
-                self.hp = decodedPokemon.stats.first(where: { $0.stat.name == "hp" })?.base_stat
-                self.attack = decodedPokemon.stats.first(where: { $0.stat.name == "attack" })?.base_stat
 
                 // Fetch evolution data
                 let (speciesData, _) = try await URLSession.shared.data(from: URL(string: decodedPokemon.species.url)!)
@@ -207,69 +266,89 @@ struct ContentView: View {
                 let (evolutionData, _) = try await URLSession.shared.data(from: URL(string: species.evolution_chain.url)!)
                 let evolution = try JSONDecoder().decode(EvolutionDetail.self, from: evolutionData)
 
-                func findEvolutionContext(in chain: Chain, previous: (species: String, details: [EvolutionDetailInfo])?) -> (from: String?, to: String?, details: EvolutionDetailInfo?)? {
-                    if chain.species.name == searchName {
-                        let next = chain.evolves_to.first?.species.name
-                        let evoDetails = chain.evolves_to.first?.evolution_details.first
-                        return (from: previous?.species, to: next, details: evoDetails)
+                func findChainNode(in chain: Chain, for speciesName: String) -> Chain? {
+                    if chain.species.name == speciesName {
+                        return chain
                     }
-
                     for evo in chain.evolves_to {
-                        if let found = findEvolutionContext(in: evo, previous: (species: chain.species.name, details: chain.evolution_details)) {
-                            return found
+                        if let node = findChainNode(in: evo, for: speciesName) {
+                            return node
                         }
                     }
-
                     return nil
                 }
 
-                if let context = findEvolutionContext(in: evolution.chain, previous: nil) {
-                    if let from = context.from {
-                        self.evolvesFrom = from.capitalized
-                        self.fromSpriteURL = await fetchPokemonSprite(for: from)
-                    } else {
-                        self.evolvesFrom = nil
-                        self.fromSpriteURL = nil
+                func findAncestors(in chain: Chain, target: String) -> [Chain]? {
+                    if chain.species.name == target {
+                        return []
                     }
-
-                    if let to = context.to {
-                        self.evolvesTo = to.capitalized
-                        self.toSpriteURL = await fetchPokemonSprite(for: to)
-                    } else {
-                        self.evolvesTo = nil
-                        self.toSpriteURL = nil
-                    }
-
-                    if let evoDetail = context.details {
-                        let trigger = evoDetail.trigger.name
-                        if trigger == "level-up", let level = evoDetail.min_level {
-                            self.evolutionMethod = "Level up at level \(level)"
-                        } else if trigger == "use-item", let item = evoDetail.item?.name {
-                            self.evolutionMethod = "Use item: \(item.capitalized)"
-                        } else {
-                            self.evolutionMethod = trigger.capitalized
+                    for evo in chain.evolves_to {
+                        if let path = findAncestors(in: evo, target: target) {
+                            return [chain] + path
                         }
-                    } else {
-                        self.evolutionMethod = "Unknown"
                     }
-                } else {
-                    self.evolvesFrom = nil
-                    self.evolvesTo = nil
-                    self.fromSpriteURL = nil
-                    self.toSpriteURL = nil
-                    self.evolutionMethod = "Unknown"
+                    return nil
                 }
+
+                // Find the node for the current Pokémon in the evolution tree
+                guard let node = findChainNode(in: evolution.chain, for: searchName) else {
+                    self.evolutionOptions = []
+                    self.previousOptions = []
+                    return
+                }
+                // Build options for every possible evolution from this node
+                var options: [EvolutionOption] = []
+                for child in node.evolves_to {
+                    let evoName = child.species.name
+                    // Determine method
+                    let detail = child.evolution_details.first
+                    var methodStr = "Unknown"
+                    if let d = detail {
+                        let trigger = d.trigger.name
+                        if trigger == "level-up", let level = d.min_level {
+                            methodStr = "Level up at level \(level)"
+                        } else if trigger == "use-item", let item = d.item?.name {
+                            methodStr = "Use item: \(item.capitalized)"
+                        } else {
+                            methodStr = trigger.capitalized
+                        }
+                    }
+                    // Fetch sprite
+                    let sprite = await fetchPokemonSprite(for: evoName)
+                    options.append(EvolutionOption(name: evoName.capitalized, method: methodStr, spriteURL: sprite))
+                }
+                self.evolutionOptions = options
+
+                // Build previous options
+                var prev: [EvolutionOption] = []
+                if let ancestorChains = findAncestors(in: evolution.chain, target: searchName) {
+                    for node in ancestorChains {
+                        let name = node.species.name
+                        let sprite = await fetchPokemonSprite(for: name)
+                        // determine method if desired, else use empty
+                        let detail = node.evolution_details.first
+                        var methodStr = ""
+                        if let d = detail {
+                            let trigger = d.trigger.name
+                            if trigger == "level-up", let level = d.min_level {
+                                methodStr = "Leveled at \(level)"
+                            } else if trigger == "use-item", let item = d.item?.name {
+                                methodStr = "Used \(item.capitalized)"
+                            } else {
+                                methodStr = trigger.capitalized
+                            }
+                        }
+                        prev.append(EvolutionOption(name: name.capitalized, method: methodStr, spriteURL: sprite))
+                    }
+                }
+                self.previousOptions = prev
+
                 self.errorMessage = nil
             } catch {
                 self.errorMessage = "Pokémon not found or evolution data missing."
                 self.pokemon = nil
-                self.hp = nil
-                self.attack = nil
-                self.evolvesFrom = nil
-                self.evolvesTo = nil
-                self.fromSpriteURL = nil
-                self.toSpriteURL = nil
-                self.evolutionMethod = ""
+                self.evolutionOptions = []
+                self.previousOptions = []
             }
         }
     }
@@ -351,4 +430,11 @@ func fetchPokemonSprite(for name: String) async -> String? {
     } catch {
         return nil
     }
+}
+
+struct EvolutionOption: Identifiable {
+    let id = UUID()
+    let name: String
+    let method: String
+    let spriteURL: String?
 }
