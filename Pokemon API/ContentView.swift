@@ -124,29 +124,41 @@ struct ContentView: View {
                             Text("How to Evolve: \(evolutionMethod)")
                         }
                         if let from = evolvesFrom, let url = fromSpriteURL, let spriteURL = URL(string: url) {
-                            HStack {
-                                Text("Evolved From:")
-                                AsyncImage(url: spriteURL) { image in
-                                    image.resizable()
-                                } placeholder: {
-                                    ProgressView()
+                            Button {
+                                pokemonName = from.lowercased()
+                                fetchPokemon(named: from.lowercased())
+                            } label: {
+                                HStack {
+                                    Text("Evolved From:")
+                                    AsyncImage(url: spriteURL) { image in
+                                        image.resizable()
+                                    } placeholder: {
+                                        ProgressView()
+                                    }
+                                    .frame(width: 40, height: 40)
+                                    Text(from)
                                 }
-                                .frame(width: 40, height: 40)
-                                Text(from)
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
 
                         if let to = evolvesTo, let url = toSpriteURL, let spriteURL = URL(string: url) {
-                            HStack {
-                                Text("Evolves To:")
-                                AsyncImage(url: spriteURL) { image in
-                                    image.resizable()
-                                } placeholder: {
-                                    ProgressView()
+                            Button {
+                                pokemonName = to.lowercased()
+                                fetchPokemon(named: to.lowercased())
+                            } label: {
+                                HStack {
+                                    Text("Evolves To:")
+                                    AsyncImage(url: spriteURL) { image in
+                                        image.resizable()
+                                    } placeholder: {
+                                        ProgressView()
+                                    }
+                                    .frame(width: 40, height: 40)
+                                    Text(to)
                                 }
-                                .frame(width: 40, height: 40)
-                                Text(to)
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding()
