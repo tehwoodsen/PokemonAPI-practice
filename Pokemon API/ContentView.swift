@@ -6,18 +6,16 @@
 //
 
 import SwiftUI
-
+//this is for the scrolling of the app incase there is too much data on screen
 struct ScrollOffsetKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
 }
-
+//this is where the pokemon data will populate
 struct Pokemon: Decodable {
     let name: String
-    let height: Int
-    let weight: Int
     let stats: [Stat]
     let sprites: Sprites
     let species: SpeciesURL
@@ -35,7 +33,7 @@ struct StatInfo: Decodable {
 struct SpeciesURL: Decodable {
     let url: String
 }
-
+// this is the sprite picked
 struct Sprites: Decodable {
     let front_default: String
 }
@@ -235,12 +233,18 @@ struct ContentView: View {
     }
 
     func fetchPokemon(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "Please enter a Pokémon name."
+            return
+        }
         Task {
+            let inputName = trimmed
             if allPokemonNames.isEmpty {
                 allPokemonNames = await fetchAllPokemonNames()
             }
 
-            var searchName = name.lowercased()
+            var searchName = inputName.lowercased()
             correctedName = nil
             if !allPokemonNames.contains(searchName) {
                 if let corrected = findClosestPokemonName(for: searchName, in: allPokemonNames) {
