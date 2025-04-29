@@ -75,7 +75,6 @@ struct ContentView: View {
     @State private var errorMessage: String?
     @State private var hp: Int?
     @State private var attack: Int?
-    @State private var evolutionLevel: String = "N/A"
     @State private var evolutionMethod: String = ""
     @State private var allPokemonNames: [String] = []
     @State private var correctedName: String?
@@ -121,7 +120,6 @@ struct ContentView: View {
                         if let attack = attack {
                             Text("Attack: \(attack)")
                         }
-                        Text("Evolution: \(evolutionLevel)")
                         if !evolutionMethod.isEmpty {
                             Text("How to Evolve: \(evolutionMethod)")
                         }
@@ -230,8 +228,6 @@ struct ContentView: View {
                         self.toSpriteURL = nil
                     }
 
-                    self.evolutionLevel = context.to ?? "N/A"
-
                     if let evoDetail = context.details {
                         let trigger = evoDetail.trigger.name
                         if trigger == "level-up", let level = evoDetail.min_level {
@@ -249,7 +245,6 @@ struct ContentView: View {
                     self.evolvesTo = nil
                     self.fromSpriteURL = nil
                     self.toSpriteURL = nil
-                    self.evolutionLevel = "N/A"
                     self.evolutionMethod = "Unknown"
                 }
                 self.errorMessage = nil
@@ -262,7 +257,6 @@ struct ContentView: View {
                 self.evolvesTo = nil
                 self.fromSpriteURL = nil
                 self.toSpriteURL = nil
-                self.evolutionLevel = "N/A"
                 self.evolutionMethod = ""
             }
         }
