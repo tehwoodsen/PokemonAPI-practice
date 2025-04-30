@@ -37,7 +37,7 @@ struct SpeciesURL: Decodable {
 struct Sprites: Decodable {
     let front_default: String
 }
-
+//this is where the evolutionchain call happens, and shows what and where the pokemons evolutions are
 struct Species: Decodable {
     let evolution_chain: EvolutionChain
 }
@@ -300,7 +300,7 @@ struct ContentView: View {
                     self.previousOptions = []
                     return
                 }
-                // Build options for every possible evolution from this node
+                // I had to ask the LLM to help build this, this helped implement the node and chains for the evolution. 
                 var options: [EvolutionOption] = []
                 for child in node.evolves_to {
                     let evoName = child.species.name
@@ -363,6 +363,7 @@ struct ContentView: View {
 }
 
 // MARK: - Fuzzy Name Matching and Utility
+// I had to let the llm show me how to implement this. The advanced nature of the search and how the string differential works was a little beyond me.
 
 struct PokemonList: Decodable {
     let results: [PokemonName]
@@ -401,7 +402,7 @@ func levenshtein(_ lhs: String, _ rhs: String) -> Int {
 
     return dp[lhs.count][rhs.count]
 }
-
+// this function performs the name differential against the array below
 func findClosestPokemonName(for input: String, in names: [String]) -> String? {
     let threshold = 3
     let sortedNames = names.map { ($0, levenshtein(input, $0)) }
@@ -413,7 +414,7 @@ func findClosestPokemonName(for input: String, in names: [String]) -> String? {
         return nil
     }
 }
-
+// in order to let the fuzzy search function work the way that it does I needed to create an array of all pokemon names. the search then runs the typed name in search against the database and finds through character/string matching the best result. This could be tweaked to provide more results, or better results.
 func fetchAllPokemonNames() async -> [String] {
     guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon?limit=10000") else { return [] }
     do {
@@ -424,7 +425,7 @@ func fetchAllPokemonNames() async -> [String] {
         return []
     }
 }
-
+//this is pulling the sprite for the fuzzy search function
 func fetchPokemonSprite(for name: String) async -> String? {
     guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon/\(name.lowercased())") else { return nil }
     do {
