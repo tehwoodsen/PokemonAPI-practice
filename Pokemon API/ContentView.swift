@@ -84,7 +84,7 @@ struct ContentView: View {
     @State private var previousOptions: [EvolutionOption] = []
     @State private var showScrollDownIndicator = true
     @State private var showScrollUpButton = false
-
+//this is the section that defines the search field
     var body: some View {
         NavigationView {
             ScrollViewReader { proxy in
@@ -103,7 +103,7 @@ struct ContentView: View {
                         Button("Search") {
                             fetchPokemon(named: pokemonName.lowercased())
                         }
-
+//the start of the fuzzy logic reference
                         if let corrected = correctedName {
                             Text("Did you mean \(corrected.capitalized)?")
                                 .foregroundColor(.orange)
@@ -300,7 +300,7 @@ struct ContentView: View {
                     self.previousOptions = []
                     return
                 }
-                // I had to ask the LLM to help build this, this helped implement the node and chains for the evolution. 
+                // I had to ask the LLM to help build this, this helped implement the node and chains for the evolution.
                 var options: [EvolutionOption] = []
                 for child in node.evolves_to {
                     let evoName = child.species.name
@@ -436,7 +436,7 @@ func fetchPokemonSprite(for name: String) async -> String? {
         return nil
     }
 }
-
+//this section was built specifically for Eevee with help. The evolution tree was very challenging to understand how to traverse in the documentation. I chalk that up entirely to my lack of experience reading APIs and thinking with a dev/coding/programming mindset
 struct EvolutionOption: Identifiable {
     let id = UUID()
     let name: String
