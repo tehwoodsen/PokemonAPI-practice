@@ -24,4 +24,4 @@ The var section has a complex call that I had trouble working into the code but 
       
       
   Things that I know can be done better: find a way to store the information to prevent too many calls to the API, prevents excess traffic, speeds up loading of the app if the initial pull is the only time it has to be done rather than each time. 
-      
+  I think I also want to do something security minded, or an API pull with encryption in mind as everything this API does is plain text.       
