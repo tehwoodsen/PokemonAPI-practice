@@ -2,7 +2,7 @@ While I am on a journey to learn and understand coding better, some of these may
 
 Creating this code, I wanted to make clear that while an LLM is helping me, I have to stress that I am doing my best to not implement anything that I dont understand. For instance:
 
-I had a lengthy discussion about why the use of struct vs any other class in this project
+I had a lengthy discussion about why the use of struct vs any other class in this project and it has to do with how the app is pulling in data. Other APIs may use other classes in other instacnes.
 
 The way it was described is that the decodable library helps pull in external data -and in this instance- JSON data into readable formats and the struct helps conform the data into readable 
 entries to interact with. That sounds redundant but I think both of those statements are needed to be true. 
