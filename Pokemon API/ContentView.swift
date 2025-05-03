@@ -6,73 +6,7 @@
 //
 
 import SwiftUI
-//this is for the scrolling of the app incase there is too much data on screen
-struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-//this is where the pokemon data will populate
-struct Pokemon: Decodable {
-    let name: String
-    let stats: [Stat]
-    let sprites: Sprites
-    let species: SpeciesURL
-}
 
-struct Stat: Decodable {
-    let base_stat: Int
-    let stat: StatInfo
-}
-
-struct StatInfo: Decodable {
-    let name: String
-}
-
-struct SpeciesURL: Decodable {
-    let url: String
-}
-// this is the sprite picked
-struct Sprites: Decodable {
-    let front_default: String
-}
-//this is where the evolutionchain call happens, and shows what and where the pokemons evolutions are
-struct Species: Decodable {
-    let evolution_chain: EvolutionChain
-}
-
-struct EvolutionChain: Decodable {
-    let url: String
-}
-
-struct EvolutionDetail: Decodable {
-    let chain: Chain
-}
-
-struct Chain: Decodable {
-    let evolves_to: [Chain]
-    let evolution_details: [EvolutionDetailInfo]
-    let species: SpeciesInfo
-}
-
-struct EvolutionDetailInfo: Decodable {
-    let min_level: Int?
-    let trigger: Trigger
-    let item: ItemInfo?
-}
-
-struct Trigger: Decodable {
-    let name: String
-}
-
-struct ItemInfo: Decodable {
-    let name: String
-}
-
-struct SpeciesInfo: Decodable {
-    let name: String
-}
 
 struct ContentView: View {
     @State private var pokemonName = ""
@@ -84,6 +18,9 @@ struct ContentView: View {
     @State private var previousOptions: [EvolutionOption] = []
     @State private var showScrollDownIndicator = true
     @State private var showScrollUpButton = false
+    
+    @ObservedObject var viewModel = ViewModel()
+    
 //this is the section that defines the search field
     var body: some View {
         NavigationView {
@@ -241,13 +178,13 @@ struct ContentView: View {
         Task {
             let inputName = trimmed
             if allPokemonNames.isEmpty {
-                allPokemonNames = await fetchAllPokemonNames()
+                allPokemonNames = await viewModel.fetchAllPokemonNames()
             }
 
             var searchName = inputName.lowercased()
             correctedName = nil
             if !allPokemonNames.contains(searchName) {
-                if let corrected = findClosestPokemonName(for: searchName, in: allPokemonNames) {
+                if let corrected = viewModel.findClosestPokemonName(for: searchName, in: allPokemonNames) {
                     correctedName = corrected
                     searchName = corrected
                 }
@@ -318,7 +255,7 @@ struct ContentView: View {
                         }
                     }
                     // Fetch sprite
-                    let sprite = await fetchPokemonSprite(for: evoName)
+                    let sprite = await viewModel.fetchPokemonSprite(for: evoName)
                     options.append(EvolutionOption(name: evoName.capitalized, method: methodStr, spriteURL: sprite))
                 }
                 self.evolutionOptions = options
@@ -328,7 +265,7 @@ struct ContentView: View {
                 if let ancestorChains = findAncestors(in: evolution.chain, target: searchName) {
                     for node in ancestorChains {
                         let name = node.species.name
-                        let sprite = await fetchPokemonSprite(for: name)
+                        let sprite = await viewModel.fetchPokemonSprite(for: name)
                         // determine method if desired, else use empty
                         let detail = node.evolution_details.first
                         var methodStr = ""
@@ -362,84 +299,3 @@ struct ContentView: View {
     ContentView()
 }
 
-// MARK: - Fuzzy Name Matching and Utility
-// I had to let the llm show me how to implement this. The advanced nature of the search and how the string differential works was a little beyond me.
-
-struct PokemonList: Decodable {
-    let results: [PokemonName]
-}
-
-struct PokemonName: Decodable {
-    let name: String
-}
-
-func levenshtein(_ lhs: String, _ rhs: String) -> Int {
-    let lhs = Array(lhs.lowercased())
-    let rhs = Array(rhs.lowercased())
-
-    var dp = Array(repeating: Array(repeating: 0, count: rhs.count + 1), count: lhs.count + 1)
-
-    for i in 0...lhs.count {
-        dp[i][0] = i
-    }
-    for j in 0...rhs.count {
-        dp[0][j] = j
-    }
-
-    for i in 1...lhs.count {
-        for j in 1...rhs.count {
-            if lhs[i-1] == rhs[j-1] {
-                dp[i][j] = dp[i-1][j-1]
-            } else {
-                dp[i][j] = min(
-                    dp[i-1][j] + 1,
-                    dp[i][j-1] + 1,
-                    dp[i-1][j-1] + 1
-                )
-            }
-        }
-    }
-
-    return dp[lhs.count][rhs.count]
-}
-// this function performs the name differential against the array below
-func findClosestPokemonName(for input: String, in names: [String]) -> String? {
-    let threshold = 3
-    let sortedNames = names.map { ($0, levenshtein(input, $0)) }
-        .sorted { $0.1 < $1.1 }
-
-    if let bestMatch = sortedNames.first, bestMatch.1 <= threshold {
-        return bestMatch.0
-    } else {
-        return nil
-    }
-}
-// in order to let the fuzzy search function work the way that it does I needed to create an array of all pokemon names. the search then runs the typed name in search against the database and finds through character/string matching the best result. This could be tweaked to provide more results, or better results.
-func fetchAllPokemonNames() async -> [String] {
-    guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon?limit=10000") else { return [] }
-    do {
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let decoded = try JSONDecoder().decode(PokemonList.self, from: data)
-        return decoded.results.map { $0.name }
-    } catch {
-        return []
-    }
-}
-//this is pulling the sprite for the fuzzy search function
-func fetchPokemonSprite(for name: String) async -> String? {
-    guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon/\(name.lowercased())") else { return nil }
-    do {
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let decoded = try JSONDecoder().decode(Pokemon.self, from: data)
-        return decoded.sprites.front_default
-    } catch {
-        return nil
-    }
-}
-//this section was built specifically for Eevee with help. The evolution tree was very challenging to understand how to traverse in the documentation. I chalk that up entirely to my lack of experience reading APIs and thinking with a dev/coding/programming mindset
-struct EvolutionOption: Identifiable {
-    let id = UUID()
-    let name: String
-    let method: String
-    let spriteURL: String?
-}
